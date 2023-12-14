@@ -45,7 +45,27 @@ jobs:
         with:
           role-to-assume: ${{ secrets.ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
+      
+      # Deploy ECS Cluster using templates/cluster.yaml
+      - name: Deploy ECS Cluster
+        id: deploy-ecs-stack
+        uses: aws-actions/aws-cloudformation-github-deploy@master
+        with:
+          name: cluster
+          template: ./templates/cluster.yaml
+          no-fail-on-empty-changeset: "1"
+          parameter-overrides: >-
+            ECSClusterName=${{ vars.ECS_CLUSTER_NAME }},
+            AppName=${{ vars.APP_NAME }},
+            VPCStackName=${{ vars.VPC_STACK_NAME }}
 
+      - name: Get ECS env vars
+        id: get_ecs_ven_vars
+        run: |
+          ECS_CLUSTER=$(aws cloudformation describe-stacks --stack-name cluster --region ${{ vars.AWS_REGION }} | jq -r '.Stacks[0].Outputs[] | select(.OutputKey=="ECSCluster") | .OutputValue')
+          ECS_SERVICE=$(aws cloudformation describe-stacks --stack-name cluster --region ${{ vars.AWS_REGION }} | jq -r '.Stacks[0].Outputs[] | select(.OutputKey=="ECSService") | .OutputValue')
+          echo "ECS_CLUSTER=$ECS_CLUSTER" >> $GITHUB_ENV
+          echo "ECS_SERVICE=$ECS_SERVICE" >> $GITHUB_ENV
 
       # TODO
       # Configure AWS credentials
